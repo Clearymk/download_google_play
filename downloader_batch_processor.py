@@ -34,7 +34,7 @@ class DownloadBatchDownloader:
         desired_caps['platformVersion'] = "11.0"
         desired_caps['deviceName'] = device_id
         desired_caps['udid'] = device_id
-        desired_caps['systemPort'] = int(appium_port) + 2 * MAX_THREAD
+        desired_caps['systemPort'] = int(appium_port) + 3 * MAX_THREAD
         desired_caps['autoGrantPermissions'] = True
         desired_caps['automationName'] = "UiAutomator2"
         desired_caps['appPackage'] = "com.android.vending"
