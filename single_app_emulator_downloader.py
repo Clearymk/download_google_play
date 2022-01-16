@@ -2,7 +2,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, InvalidSessionIdException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, InvalidSessionIdException, \
+    StaleElementReferenceException
 from selenium.webdriver.chrome.webdriver import Options
 import time
 import os
@@ -73,12 +74,15 @@ class SingleAppEmulatorDownloader:
             return False
         for search_target in search_targets.find_elements(By.XPATH, "//*"):
             try:
-                search_detail = search_target.find_element(By.CLASS_NAME, "android.view.View")
-                for _ in str(search_detail.get_attribute("content-desc")).split("\n"):
-                    if app_name.lower() == _.replace("App: ", "").strip().lower():
-                        search_detail.click()
-                        flag = True
-                        break
+                try:
+                    search_detail = search_target.find_element(By.CLASS_NAME, "android.view.View")
+                    for _ in str(search_detail.get_attribute("content-desc")).split("\n"):
+                        if app_name.lower() == _.replace("App: ", "").strip().lower():
+                            search_detail.click()
+                            flag = True
+                            break
+                except StaleElementReferenceException:
+                    flag = False
             except NoSuchElementException:
                 print()
 
