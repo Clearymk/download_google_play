@@ -84,7 +84,7 @@ class SingleAppEmulatorDownloader:
                 except StaleElementReferenceException:
                     flag = False
             except NoSuchElementException:
-                print()
+                print("", end="")
 
             if flag:
                 break
