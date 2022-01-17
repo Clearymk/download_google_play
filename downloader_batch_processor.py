@@ -6,7 +6,7 @@ from single_app_emulator_downloader import SingleAppEmulatorDownloader
 
 MAX_THREAD = 2
 download_queue = queue.Queue()
-device_ids = ["emulator-5554", "emulator-5556", "emulator-5558"]
+device_ids = ["emulator-5554", "emulator-5558", "emulator-5558"]
 appium_ports = ["4723", "4724", "4725"]
 
 
@@ -16,6 +16,7 @@ class DownloadBatchDownloader:
         self.threads = []
         self.conn = mysql.connector.connect(user='root', password='sqlClear1998', database='xapk')
         self.cursor = self.conn.cursor()
+        self.base_app_ids = []
         self.prepare()
 
     def worker(self, device_id, appium_port):
@@ -24,7 +25,7 @@ class DownloadBatchDownloader:
                                   self.init_appium(device_id, appium_port))
         while not download_queue.empty():
             app_id = download_queue.get()
-            SingleAppEmulatorDownloader(device_id, app_id, self.conn, self.cursor, driver)
+            SingleAppEmulatorDownloader(device_id, app_id, self.conn, self.cursor, driver, self.base_app_ids)
             # driver.find_element().
             download_queue.task_done()
 
@@ -50,6 +51,11 @@ class DownloadBatchDownloader:
         targets = self.cursor.fetchall()
         for app_id in targets:
             download_queue.put(app_id[0])
+
+        with open("base_app_id", "r") as f:
+            for app_id in f.readlines():
+                self.base_app_ids.append(app_id.strip().replace("package:", ""))
+
         # set max thread and start each thread
         for i in range(MAX_THREAD):
             thread = threading.Thread(target=self.worker, args=(device_ids[i], appium_ports[i],))
