@@ -99,7 +99,8 @@ class SingleAppEmulatorDownloader:
     def click_accept_button(self):
         try:
             time.sleep(2)
-            if len(self.driver.find_elements(By.CLASS_NAME, "android.widget.Button")) == 1:
+            if len(self.driver.find_elements(By.CLASS_NAME, "android.widget.Button")) == 1 and len(self.driver.find_element(
+                    By.XPATH, "*//android.view.ViewGroup/android.widget.Button")) < 1:
                 self.driver.find_element(By.CLASS_NAME, "android.widget.Button").click()
         except Exception:
             self.flag = False
