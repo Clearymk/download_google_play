@@ -2,20 +2,21 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, InvalidSessionIdException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, InvalidSessionIdException, \
+    StaleElementReferenceException
+import mysql.connector
 from selenium.webdriver.chrome.webdriver import Options
 import time
 import os
 
 
 class SingleAppEmulatorDownloader:
-    def __init__(self, device_id, app_id, conn, cursor, driver, base_app_ids):
+    def __init__(self, device_id, app_id, driver, base_app_ids):
         self.device_id = device_id
         self.app_id = app_id
         self.MAX_WAIT = 50
-        self.conn = conn
+        self.conn = mysql.connector.connect(user='root', password='sqlClear1998', database='xapk')
         self.driver = driver
-        self.cursor = cursor
         self.base_app_ids = base_app_ids
         self.flag = True
         self.download()
@@ -99,8 +100,8 @@ class SingleAppEmulatorDownloader:
     def click_accept_button(self):
         try:
             time.sleep(2)
-            if len(self.driver.find_elements(By.CLASS_NAME, "android.widget.Button")) == 1 and len(self.driver.find_element(
-                    By.XPATH, "*//android.view.ViewGroup/android.widget.Button")) < 1:
+            if len(self.driver.find_elements(By.CLASS_NAME, "android.widget.Button")) == 1 and len(
+                    self.driver.find_elements(By.XPATH, "*//android.view.ViewGroup/android.widget.Button")) < 1:
                 self.driver.find_element(By.CLASS_NAME, "android.widget.Button").click()
         except Exception:
             self.flag = False
@@ -143,11 +144,11 @@ class SingleAppEmulatorDownloader:
                     if app_name.lower() == _.replace("App: ", "").strip().lower():
                         search_detail.click()
                         return True
-            except NoSuchElementException:
+            except NoSuchElementException or StaleElementReferenceException:
                 print("", end="")
-            # except Exception:
-            #     self.flag = False
-            #     self.update_status(5)
+            except Exception:
+                self.flag = False
+                self.update_status(5)
         return False
 
     def analysis(self):
@@ -164,12 +165,12 @@ class SingleAppEmulatorDownloader:
                 elif len(res) > 1:
                     print(res)
                     self.update_bundle(2)
-                    os.popen("mkdir /Volumes/Data/apk_pure/play_xapk/" + self.app_id).readlines()
+                    os.popen("mkdir D:\\play_apk\\" + self.app_id).readlines()
                     print("muti apk find extract it")
                     for path in res:
                         path = path.split('package:')[1].strip()
                         print(os.popen("adb -s {} pull ".format(self.device_id)
-                                       + path + " /Volumes/Data/apk_pure/play_xapk/" +
+                                       + path + " D:\\play_apk\\" +
                                        self.app_id).readlines())
         else:
             return False
@@ -181,6 +182,7 @@ class SingleAppEmulatorDownloader:
         for app_id in res:
             app_id = app_id.strip().replace("package:", "")
             if app_id not in self.base_app_ids:
+                print("uninstall" + app_id)
                 os.popen("adb -s {} uninstall {}".format(self.device_id, app_id)).readlines()
 
     def is_extract_finish(self, size):
@@ -190,12 +192,16 @@ class SingleAppEmulatorDownloader:
         return True
 
     def update_status(self, status):
-        self.cursor.execute("UPDATE xapk.play_download SET status=%s WHERE app_id=%s", (status, self.app_id,))
+        cur = self.conn.cursor()
+        cur.execute("UPDATE xapk.play_download SET status=%s WHERE app_id=%s", (status, self.app_id,))
         self.conn.commit()
+        cur.close()
 
     def update_bundle(self, is_bundle):
-        self.cursor.execute("UPDATE xapk.play_download SET bundle=%s WHERE app_id=%s", (is_bundle, self.app_id,))
+        cur = self.conn.cursor()
+        cur.execute("UPDATE xapk.play_download SET bundle=%s WHERE app_id=%s", (is_bundle, self.app_id,))
         self.conn.commit()
+        cur.close()
 
     def get_app_name(self, app_id):
         # 根据app_id寻找app的名字
@@ -205,12 +211,14 @@ class SingleAppEmulatorDownloader:
         try:
             driver.get("https://play.google.com/store/apps/details?id={}".format(app_id))
         except Exception:
+            print("not find", app_id)
             self.update_status(4)
             self.flag = False
 
         try:
             return driver.find_element(By.CSS_SELECTOR, "h1 > span").text.strip()
         except NoSuchElementException:
+            print("not find", app_id)
             self.update_status(5)
             self.flag = False
             return ""
