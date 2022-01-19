@@ -7,9 +7,9 @@ import threading
 from appium import webdriver
 from single_app_emulator_downloader import SingleAppEmulatorDownloader
 
-MAX_THREAD = 2
+MAX_THREAD = 3
 download_queue = queue.Queue()
-device_ids = ["emulator-5554", "emulator-5556", "emulator-5556"]
+device_ids = ["emulator-5554", "emulator-5556", "emulator-5558"]
 appium_ports = ["4723", "4724", "4725"]
 device_names = {"emulator-5554": "Pixel_4_API_30", "emulator-5556": "Pixel_4_API_30_2",
                 "emulator-5558": "Pixel_4_API_30_3"}

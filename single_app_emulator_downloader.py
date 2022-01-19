@@ -36,7 +36,15 @@ class SingleAppEmulatorDownloader:
 
     def check_emulator(self):
         # 如果模拟器未响应就重启模拟器
-        if len(self.driver.find_elements(By.ID, "android:id/parentPanel")) > 0:
+        size = 0
+        while True:
+            try:
+                size = len(self.driver.find_elements(By.ID, "android:id/parentPanel"))
+                break
+            except Exception:
+                pass
+
+        if size > 0:
             os.popen("adb -s {} emu kill".format(self.device_id))
 
             os.popen("source ~/.bash_profile && emulator -avd {} -no-snapshot-load".format(self.device_name))
