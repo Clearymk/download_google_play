@@ -1,32 +1,49 @@
+import os
+import time
+import subprocess
+import mysql.connector
 import queue
 import threading
 from appium import webdriver
 from single_app_emulator_downloader import SingleAppEmulatorDownloader
-import mysql.connector
 
-MAX_THREAD = 3
+MAX_THREAD = 2
 download_queue = queue.Queue()
-device_ids = ["emulator-5554", "emulator-5558", "emulator-5556"]
+device_ids = ["emulator-5554", "emulator-5556", "emulator-5556"]
 appium_ports = ["4723", "4724", "4725"]
+device_names = {"emulator-5554": "Pixel_4_API_30", "emulator-5556": "Pixel_4_API_30_2",
+                "emulator-5558": "Pixel_4_API_30_3"}
 
 
 class DownloadBatchDownloader:
 
     def __init__(self):
         self.threads = []
-        self.base_app_ids = []
         self.conn = mysql.connector.connect(user='root', password='sqlClear1998', database='xapk')
+        self.base_app_ids = []
         self.prepare()
 
     def worker(self, device_id, appium_port):
         global download_queue
+        self.start_emulator(device_names[device_id], device_id)
+        print(device_id, "started")
         driver = webdriver.Remote("http://localhost:{}/wd/hub".format(appium_port),
                                   self.init_appium(device_id, appium_port))
         while not download_queue.empty():
             app_id = download_queue.get()
-            SingleAppEmulatorDownloader(device_id, app_id, driver, self.base_app_ids)
+            SingleAppEmulatorDownloader(device_id, device_names[device_id], app_id, driver, self.base_app_ids)
             # driver.find_element().
             download_queue.task_done()
+
+    def start_emulator(self, device_name, device_id):
+        os.popen("source ~/.bash_profile && emulator -avd {} -no-snapshot-load".format(device_name))
+
+        while True:
+            res = os.popen("adb -s {} shell getprop dev.bootcomplete".format(device_id)).readlines()
+            if "1\n" in res:
+                break
+            else:
+                time.sleep(1)
 
     def init_appium(self, device_id, appium_port):
         desired_caps = {}
@@ -34,7 +51,7 @@ class DownloadBatchDownloader:
         desired_caps['platformVersion'] = "11.0"
         desired_caps['deviceName'] = device_id
         desired_caps['udid'] = device_id
-        desired_caps['systemPort'] = int(appium_port) + 4 * MAX_THREAD - 1
+        desired_caps['systemPort'] = int(appium_port) + 8 * MAX_THREAD
         desired_caps['autoGrantPermissions'] = True
         desired_caps['automationName'] = "UiAutomator2"
         desired_caps['appPackage'] = "com.android.vending"
@@ -43,6 +60,7 @@ class DownloadBatchDownloader:
         desired_caps['unicodeKeyboard'] = True
         desired_caps['resetKeyboard'] = True
         desired_caps['newCommandTimeout'] = 400000
+        desired_caps["ignoreHiddenApiPolicyError"] = True
         return desired_caps
 
     def prepare(self):

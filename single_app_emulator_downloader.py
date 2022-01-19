@@ -11,8 +11,9 @@ import os
 
 
 class SingleAppEmulatorDownloader:
-    def __init__(self, device_id, app_id, driver, base_app_ids):
+    def __init__(self, device_id, device_name, app_id, driver, base_app_ids):
         self.device_id = device_id
+        self.device_name = device_name
         self.app_id = app_id
         self.MAX_WAIT = 50
         self.conn = mysql.connector.connect(user='root', password='sqlClear1998', database='xapk')
@@ -22,6 +23,7 @@ class SingleAppEmulatorDownloader:
         self.download()
 
     def download(self):
+        self.check_emulator()
         self.uninstall_app()
         app_name = self.get_app_name(self.app_id)
         if self.flag:
@@ -31,6 +33,20 @@ class SingleAppEmulatorDownloader:
                 self.download_analysis()
             else:
                 print("not find app skip")
+
+    def check_emulator(self):
+        # 如果模拟器未响应就重启模拟器
+        if len(self.driver.find_elements(By.ID, "android:id/parentPanel")) > 0:
+            os.popen("adb -s {} emu kill".format(self.device_id))
+
+            os.popen("source ~/.bash_profile && emulator -avd {} -no-snapshot-load".format(self.device_name))
+
+            while True:
+                res = os.popen("adb -s {} shell getprop dev.bootcomplete".format(self.device_id)).readlines()
+                if "1\n" in res:
+                    break
+                else:
+                    time.sleep(1)
 
     def start_activity(self):
         flag = True
@@ -101,7 +117,8 @@ class SingleAppEmulatorDownloader:
         try:
             time.sleep(2)
             if len(self.driver.find_elements(By.CLASS_NAME, "android.widget.Button")) == 1 and len(
-                    self.driver.find_elements(By.XPATH, "*//android.view.ViewGroup/android.widget.Button")) < 1:
+                    self.driver.find_elements(
+                        By.XPATH, "*//android.view.ViewGroup/android.widget.Button")) < 1:
                 self.driver.find_element(By.CLASS_NAME, "android.widget.Button").click()
         except Exception:
             self.flag = False
@@ -165,12 +182,12 @@ class SingleAppEmulatorDownloader:
                 elif len(res) > 1:
                     print(res)
                     self.update_bundle(2)
-                    os.popen("mkdir D:\\play_apk\\" + self.app_id).readlines()
+                    os.popen("mkdir /Volumes/Data/apk_pure/play_xapk/" + self.app_id).readlines()
                     print("muti apk find extract it")
                     for path in res:
                         path = path.split('package:')[1].strip()
                         print(os.popen("adb -s {} pull ".format(self.device_id)
-                                       + path + " D:\\play_apk\\" +
+                                       + path + " /Volumes/Data/apk_pure/play_xapk/" +
                                        self.app_id).readlines())
         else:
             return False
@@ -182,7 +199,6 @@ class SingleAppEmulatorDownloader:
         for app_id in res:
             app_id = app_id.strip().replace("package:", "")
             if app_id not in self.base_app_ids:
-                print("uninstall" + app_id)
                 os.popen("adb -s {} uninstall {}".format(self.device_id, app_id)).readlines()
 
     def is_extract_finish(self, size):
@@ -211,14 +227,12 @@ class SingleAppEmulatorDownloader:
         try:
             driver.get("https://play.google.com/store/apps/details?id={}".format(app_id))
         except Exception:
-            print("not find", app_id)
             self.update_status(4)
             self.flag = False
 
         try:
             return driver.find_element(By.CSS_SELECTOR, "h1 > span").text.strip()
         except NoSuchElementException:
-            print("not find", app_id)
             self.update_status(5)
             self.flag = False
             return ""
